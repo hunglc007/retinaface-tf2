@@ -34,7 +34,7 @@ def save_trt():
   if FLAGS.quantize_mode == 'int8':
     conversion_params = trt.DEFAULT_TRT_CONVERSION_PARAMS._replace(
       precision_mode=trt.TrtPrecisionMode.INT8,
-      max_workspace_size_bytes=8000000000,
+      max_workspace_size_bytes=200000000,
       use_calibration=True,
       max_batch_size=32)
     converter = trt.TrtGraphConverterV2(

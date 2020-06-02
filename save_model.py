@@ -4,7 +4,9 @@ import cv2
 import os
 import numpy as np
 import tensorflow as tf
+import tfcoreml
 import time
+from tensorflow.python.saved_model import signature_constants
 
 from modules.models import RetinaFaceModel
 from modules.utils import (set_memory_growth, load_yaml, draw_bbox_landm,
@@ -41,7 +43,19 @@ def main(_argv):
         print("[*] Cannot find ckpt from {}.".format(checkpoint_dir))
         exit()
 
+    model.summary()
+    for i in model.layers:
+        print(i.output)
     model.save(FLAGS.output)
+    # model.save("model.h5")
+
+    # model = tfcoreml.convert(FLAGS.output,
+    #                          mlmodel_path='./model.mlmodel',
+    #                          input_name_shape_dict={'input_image': (1, 320, 320, 3)},
+    #                          output_feature_names=['Identity'],
+    #                          minimum_ios_deployment_target='13')
+    # model.save('./checkpoints/keras_model.mlmodel')
+
 
 if __name__ == '__main__':
     try:

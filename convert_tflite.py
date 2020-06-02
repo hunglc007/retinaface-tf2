@@ -5,10 +5,10 @@ import numpy as np
 import cv2
 import os
 
-flags.DEFINE_string('weights', './checkpoints/retinaface_res50.tf', 'path to weights file')
-flags.DEFINE_string('output', './checkpoints/retinaface_res50-fp16.tflite', 'path to output')
-flags.DEFINE_integer('input_size', 640, 'path to output')
-flags.DEFINE_string('quantize_mode', "float16", 'quantize mode (int8, float16, full_int8)')
+flags.DEFINE_string('weights', './checkpoints/retinaface_mbv2.tf', 'path to weights file')
+flags.DEFINE_string('output', './checkpoints/retinaface_mbv2-fp32.tflite', 'path to output')
+flags.DEFINE_integer('input_size', 320, 'path to output')
+flags.DEFINE_string('quantize_mode', "float32", 'quantize mode (int8, float16, full_int8)')
 flags.DEFINE_string('dataset', "/media/user/Source/Data/coco_dataset/coco/5k.txt", 'path to dataset')
 
 def representative_data_gen():
@@ -17,6 +17,7 @@ def representative_data_gen():
     if os.path.exists(fimage[input_value]):
       original_image=cv2.imread(fimage[input_value])
       original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+      original_image = cv2.resize(original_image, (FLAGS.input_size, FLAGS.input_size))
       img_in = original_image[np.newaxis, ...].astype(np.float32)
       print(input_value)
       yield [img_in]
@@ -30,21 +31,21 @@ def save_tflite():
   concrete_func.inputs[0].set_shape([1, FLAGS.input_size, FLAGS.input_size, 3])
   converter = tf.lite.TFLiteConverter.from_concrete_functions([concrete_func])
   if FLAGS.quantize_mode == 'int8':
-    converter.inference_type = tf.lite.constants.QUANTIZED_UINT8
-    input_arrays = converter.get_input_arrays()
-    converter.quantized_input_stats = {input_arrays[0]: (0., 1.)}  # mean_value, std_dev
+    # converter.inference_type = tf.compat.v1.lite.constants.QUANTIZED_UINT8
+    # input_arrays = converter.get_input_arrays()
+    # converter.quantized_input_stats = {input_arrays[0]: (0., 1.)}  # mean_value, std_dev
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
   elif FLAGS.quantize_mode == 'float16':
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     converter.target_spec.supported_types = [tf.compat.v1.lite.constants.FLOAT16]
-    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS, tf.lite.OpsSet.SELECT_TF_OPS]
     converter.allow_custom_ops = True
   elif FLAGS.quantize_mode == 'full_int8':
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS, tf.lite.OpsSet.SELECT_TF_OPS]
     converter.allow_custom_ops = True
     converter.representative_dataset = representative_data_gen
 
+  converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS, tf.lite.OpsSet.SELECT_TF_OPS]
   tflite_model = converter.convert()
   open(FLAGS.output, 'wb').write(tflite_model)
 
